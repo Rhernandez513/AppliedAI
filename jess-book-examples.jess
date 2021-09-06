@@ -1,0 +1,179 @@
+; imports 
+(import java.util.*)
+(bind ?prices (new HashMap))
+(printout t "Hello" crlf)
+(bind ?prices (new HashMap 20 0.5))
+(call ?prices put bread 0.99)
+(call ?prices put peas 1.99)
+(call ?prices put beans 1.79)
+(call ?prices get peas)
+
+; nested calls
+(printout t (call ?prices get peas) crlf)
+(?prices put bread 5)
+(printout t (?prices get bread) crlf)
+((bind ?prices (new HashMap)) put bread 0.99)
+(call ?prices put peas 1.99)
+(call ?prices put beans 1.79)
+(printout t (?prices get bread) crlf)
+
+; static calls
+; (printout t "Sleeping 1 second" crlf)
+; (call Thread sleep 1000)
+
+; getters and setters
+; (bind ?b (new javax.swing.JButton))
+; (?b setText "Press Me") ; or..
+; (set ?b text "Press Me")
+; (?b getText) ; or..
+; (get ?b text)
+
+; working w/ arrays
+; note jess has no way to deal w/ multidimensional arrays
+; with large arrays, or multidimensional ones
+; it's best to just write the code in java and have jess call it 
+
+(bind ?grocery-list ((?prices keySet) toArray))
+(printout t ?grocery-list crlf)
+; (import javax.swing.JComboBox)
+; (bind ?jcb (new JComboBox ?grocery-list))
+
+; access and mutate class member variables
+(bind ?pt (new java.awt.Point))
+(set-member ?pt x 37)
+(set-member ?pt y 42)
+(get-member ?pt x)
+
+; try-catch example
+(deffunction parseInt (?string)
+  (try
+    (bind ?i (call Integer parseInt ?string))
+    (printout t "The answer is " ?i crlf)
+   catch
+    (printout t "Invalid argument" crlf)))
+
+
+; try-catch-finally example
+(import java.io.*)
+(bind ?file nil)
+(try
+  (bind ?file
+    (new BufferedReader
+      (new java.io.FileReader "data.txt")))
+  (while (neq nil (bind ?line (?file readLine)))
+    (printout t ?line crlf))
+ catch
+  (printout t "Error processing file" crlf)
+ finally
+  (if (neq nil ?file) then
+      (?file close)))
+
+; throw exception example
+; (throw (new Exception "testing"))
+
+
+; Manipulating working memory
+; ■ assert—Adds facts to working memory
+; ■ clear—Clears all of Jess
+; ■ deffacts—Defines the initial contents of working memory
+; ■ facts—Displays the contents of working memory
+; ■ reset—Initializes the working memory
+; ■ retract—Removes facts from working memory
+; ■ watch—Tells Jess to print diagnostics when interesting things happen
+
+; Creating facts w/ assert
+; note rules can only act on information that is represented by facts in Jess' working memory
+(reset)
+(assert (groceries milk bread))
+(facts)
+
+; Remove facts w/ retract
+(retract 1)
+(facts)
+(bind ?f (fact-id 0))
+(retract ?f)
+(facts)
+
+; Clearing working memory, variables, rules, deffunctions
+; essentially deletes the entire active program
+; typically used in interactive sessions
+(clear)
+
+; to restore the init state of an app w/o completely erasing, use reset
+; empties working memory except for (MAIN::initial-fact)
+; important to use reset once before using working memory to init it
+(reset)
+
+; deffacts construct
+; whenever reset is called, the facts in deffacts are asserted
+(clear)
+(deffacts catalog "Product catalog"
+  (product 354 sticky-notes "$1.99")
+  (product 355 paper-clips "$0.99")
+  (product 356 blue-pens "$0.99")
+  (product 357 index-cards "$0.99")
+  (product 358 stapler "$5.99"))
+(facts)
+(reset)
+(facts)
+
+; Unordered facts look like this
+; (person (name "John Q. Public") (age 34) (height 5 10) (weight 170))
+; Ordered facts on the same person
+; (person "John Q. Public" 34 5 10 170)
+
+; note, working memory is somewhat structured like a relational database
+; adding unordered facts to working memory
+; unordered fact will look like
+;(person (name "Bob Smith") (age 34) (gender Male))
+
+(clear)
+(reset)
+(deftemplate person "People in actuarial database"
+  (slot name)
+  (slot age)
+  (slot gender))
+
+; Now add the unordered fact
+;(person (name "Bob Smith") (age 34) (gender Male))
+(assert (person (age 34) (name "Bob Smith")
+          (gender Male)))
+(facts)
+
+; default slot values
+(assert (person (age 30) (gender Female)))
+(facts)
+
+; specify your own default value
+(clear)
+(reset)
+(deftemplate person "People in actuarial database"
+  (slot name (default "OCCUPANT"))
+  (slot age)
+  (slot gender))
+(assert (person (age 30) (gender Female)))
+(facts)
+
+; non-constant default values
+(clear)
+(reset)
+(deftemplate person "People in actuarial database"
+  (slot name (default "OCCUPANT"))
+  (slot created (default-dynamic(time)))
+  (slot age)
+  (slot gender))
+(assert (person (age 30) (gender Female)))
+(facts)
+
+; Multislots
+(clear)
+(reset)
+(deftemplate person "People in actuarial database"
+  (slot name (default OCCUPANT))
+  (slot age)
+  (slot gender)
+  (multislot hobbies))
+(assert (person (name "Jane Doe") (age 22)
+  (hobbies snowboarding "restoring antiques")
+  (gender Female)))
+(facts)
