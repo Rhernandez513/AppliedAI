@@ -177,3 +177,62 @@
   (hobbies snowboarding "restoring antiques")
   (gender Female)))
 (facts)
+
+; Changing slot values w/ modify
+; here we specify the fact-id
+(modify 1 (age 23))
+(facts)
+
+; Copying facts w/ duplicate
+(duplicate 1 (name "John Doe") (gender Male))
+(facts)
+
+; Ordered facts
+; you can assert facts that look like simple flat lists w/o explicitly defining
+; a defttemplate for them as long as no deftemplate using that same head has 
+; already been defined
+(deftemplate number (slot value))
+(assert (number (value 123)))
+; is the same as
+(clear)
+(reset)
+(assert (number 123))
+(facts)
+
+; Observing deftemplates
+;
+; ppdeftemplate - pretty print
+; show-deftemplates - lists all currently defined
+(printout t (ppdeftemplate number))
+(show-deftemplates)
+
+; Shadow facts
+; an unordered fact whose slots correspond to the props
+; of a Java Bean, providing a connection between Jess' working memory and the 
+; Java app context where Jess runs
+;
+; defclass - creates a deftemplate from a javabean
+; definstance adds javabeans to Jess's working memory
+
+; To use a template for the DimmerSwitch, we need to first compile it and add it 
+; to our CLASSPATH using:
+; $ javac DimmerSwitch.java
+; $ java -cp DimmerSwitch.class:jess/Jess61p4/jess.jar:. jess.Main jess-book-examples.jess
+(clear)
+(reset)
+(defclass dimmer DimmerSwitch)
+(printout t (ppdeftemplate dimmer))
+
+; Putting a dimmer switch into working memory
+(bind ?ds (new DimmerSwitch))
+(definstance dimmer ?ds static)
+(facts)
+
+; Static v Dynamic shadow facts
+; the definstance defined above is a static shadow fact
+; calling a setter will not change the value until reset is called
+; this is expected behavior when we define a definstance as static
+; If DimmerSwitch offered support for PropertyChangeListeners it 
+; could consumer a java.beans.PropertyChangeEvent and be dynamically updated
+
+; Adding PropertyChangeListener support to DimmerSwitch
