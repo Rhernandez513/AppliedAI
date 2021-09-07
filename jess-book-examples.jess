@@ -236,3 +236,11 @@
 ; could consumer a java.beans.PropertyChangeEvent and be dynamically updated
 
 ; Adding PropertyChangeListener support to DimmerSwitch
+(clear)
+(reset)
+(defclass dimmer DimmerSwitchDynamic)
+(bind ?ds (new DimmerSwitchDynamic))
+(definstance dimmer ?ds)
+(facts)
+(call ?ds setBrightness 10)
+(facts)
