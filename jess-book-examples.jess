@@ -1,3 +1,6 @@
+; run with 
+; $ java -cp DimmerSwitch.class:DimmerSwitchDynamic.class:jess/Jess61p4/jess.jar:. jess.Main jess-book-examples.jess
+
 ; imports 
 (import java.util.*)
 (bind ?prices (new HashMap))
@@ -244,3 +247,209 @@
 (facts)
 (call ?ds setBrightness 10)
 (facts)
+
+; Forward chaining rules
+(defrule null-rull
+  "A rule that does nothing"
+  =>
+)
+(watch facts)
+(watch activations)
+(watch rules)
+(reset)
+(run)
+(printout t (ppdefrule null-rull) crlf)
+
+; note LHS consists of patterns and RHS consists of function calls
+; LHS consists of patterns that are used to match facts in the working memory
+(defrule change-baby-if-wet
+  "If baby is wet, change its diaper."
+  ?wet <- (baby-is-wet)
+  =>
+  (change-baby)
+  (retract ?wet))
+
+; this wont fire, even though the LHS evals to true
+; jess specifically looks for facts in the working memory that look like (eq 1  1)
+(defrule wrong-rule
+  (eq 1 1)
+  => 
+  (printout t "Just as I thought, 1 == 1!" crlf))
+
+; Listing 7.1 a simple but complete Jess program
+(clear)
+(watch all)
+(reset)
+(deffunction change-baby()
+    (printout t "Baby is now dry" crlf))
+(defrule change-baby-if-wet
+  "If baby is wet, change its diaper."
+  ?wet <- (baby-is-wet)
+  =>
+  (change-baby)
+  (retract ?wet))
+(assert (baby-is-wet))
+(run)
+
+; 7.2.1 Literal contraints (specify exact slot values)
+(clear)
+(reset)
+(defrule literal-values
+  (letters b c)
+  =>)
+(watch activations)
+(assert (letters b d))
+(assert (letters b c))
+
+; 7.2.2 Vars as constraints
+; fires when any rule with head "a" and 2 values is asserted
+(defrule simple-variables
+  (a ?x ?y)
+  =>
+  (printout t "Saw 'a " ?x " " ?y "'" crlf))
+
+; Ex of repeating var constant
+; both a and b would need to be asserted for the rule to fire
+(defrule repeated-variables
+  (a ?x)
+  (b ?x)
+  =>
+  (printout t "?x is " ?x crlf))
+(watch activations)
+(deffacts repeated-variable-facts
+  (a 1)
+  (a 2)
+  (b 2)
+  (b 3))
+(reset)
+(run)
+
+;;;; for some reason none of these shopping cart examples work
+;;;; they all say  "Bad slot value ."
+
+; Multifields revisited
+; can only be used in multislots
+; ex $?mf is a multifield
+; multifields expand to match any number of values in a multislot
+; this ex matches a shopping-cart fact w/ any num of values in the
+; content multislot
+;(defrule any-shopping-cart
+;  (shopping-cart (contents $?items))
+;  =>
+;  (printout t "The cart contains " $?items crlf))
+
+; this one matches on any num of items on either side of milk
+; Note we generally leave the $ off the val when refrring to
+; a multifield on the RHS of a rule because it acts as a normal var
+;(defrule cart-containing-milk
+; (shopping-cart (contents $?before milk $?after))
+; => 
+; (printout t "The cart contains milk." crlf))
+
+; We can refer to vars existance without checking the contents by
+; using a blank var, just use "?"
+; this matches any poker hand w/ a ten, ace and a total of 5 cards
+; (poker-hand ten ? ? ? ace)
+
+; note w/ matching global vars like in a defglobal with a pattern
+; like (score ?*x*), only the first time the var is asserted there
+; is a match even if the value changes, and stays activated only
+; at the original matched value
+
+; Connective constraints
+	; ex we want to match a client in Boston or Hartford but not Bangor
+	; use & (and) | (or) ~ (not)
+	; match any client facts with a city slot that doesn't contain Bangor
+; (client (city ~Bangor))
+	; Match clients thathave purchased exactly 2 items which must not be the same
+; (client (items-purchased ?x ~?x))
+	; match any client from Boston or Hartford
+; (client (city Boston|Hartford))
+	; match any client not from Bangor and story the city in a var
+; (client (city ?c&~Bangor))
+;;Operator precedence
+;; ~ has highest precedence, followed by & and | , in that order
+	; match (redundant for pedagogy) all clients that are not from
+	; Bangor and are from Portland
+; (client (city ~Bangor&Portland))
+	; we cannot use parens to change precedence, consider predicate constraints
+
+; 7.2.4 Constraining matches w/ predicate funcs
+; lets say you want to match any shopping-cart that contains and odd 
+; number of items or a client that lives in a city whose name contains
+; more than 10 letters
+; a predicate func is just a Boolean func
+; use a preceding colon (:) to indicate 
+; if arg to func, bind to var first then connect that binding to the
+; func using the & connective
+;(defrule small-order
+;  (shopping-cart (customer-id ?id)
+;    (contents $?c&:(< (length$ $?c) 5)))
+;  (checking-out-now ?id)
+;  =>
+;  (printout t "Wouldn't you like to buy more?" crlf))
+
+;(defrule large-order-and-no-dairy
+;  (shopping-cart (customer-id ?id)
+;                 (contents $?c&
+;                  :(and (> (length$ $?c) 50)
+;                        (not (or (member$ milk $?c)
+;                                 (member$ butter $?c))))))
+;  (checking-out-now ?id)
+;  =>
+;  (printout t "Don't you need dairy products?" crlf))
+
+7.2.5 return value constraints
+; these constrains can help find a pair of grocery items 
+; so one is exactly twice the proce of the other
+; (item (price ?x))
+; (item (price ?y&:(eq ?y (* ?x 2))))
+
+; a better presentation is a return value constraint
+; which is preceded by an equals sign (=) and returns 
+; an arbitrary function, rewitten...
+;(item (price ?x))
+;(item (price =(* ?x 2)))
+
+; 7.2.6 Pattern bindings
+; used for passing a handle from the LHS of a rule to
+; the RHS for use of retract, modfiy, or duplicate
+(defrule pattern-binding
+  ?fact <- (a "retract me")
+  =>
+  (retract ?fact))
+
+; retreival of ?fact
+(defrule call-fact-methods
+  ?fact <- (initial-fact)
+  =>
+  (printout t "Name is " (call ?fact getName) crlf)
+  (printout t "Id is " (call ?fact getFactId) crlf))
+(reset)
+(run)
+; note cannot be used with not or test conditional elements
+; must be careful when using or and anr conditional elecments 
+; the binding will only apply to one fact, else runtime errors 
+
+7.3 Qualifying patterns with conditional elements 
+
+;; and
+; The following matches only if (flaps-up) and (engine-on) both match
+; not interesting on it's own but can become so when used w/ or and not
+(defrule ready-to-fly
+  (and (flaps-up)
+       (engine-one))
+  =>)
+
+;; or
+(clear)
+(deftemplate used-car (slot price) (slot mileage))
+(deftemplate new-car (slot price) (slot warrantyPeriod))
+(defrule might-buy-car
+  ?candidate <- (or (used-car (mileage ?m&:(< ?m 50000)))
+                    (new-car (price ?p&:(< ?p 20000))))
+  =>
+  (assert (candidate ?candidate)))
+(assert (new-car (price 18000)))
+(assert (used-car (mileage 30000)))
+(printout t (run) crlf)
