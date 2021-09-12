@@ -248,7 +248,9 @@
 (call ?ds setBrightness 10)
 (facts)
 
-; Forward chaining rules
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Forward chaining rules ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defrule null-rull
   "A rule that does nothing"
   =>
@@ -453,3 +455,237 @@
 (assert (new-car (price 18000)))
 (assert (used-car (mileage 30000)))
 (printout t (run) crlf)
+
+; we can combine them no problem
+(defrule prepare-sandwich
+  (and (or (mustard)
+           (mayo))
+       (bread))
+  =>)
+; Jess is smart enough to use DeMorgan's rule to substitute
+; out nested statements so there is only 1 or at the root at runtime
+; i.e.
+(defrule prepare-sandwich
+  (or (and (mustard) (bread))
+      (and (mayo) (bread)))
+  =>)
+; note placing the or conditional element towards the end leads to
+; more effecient pattern matching
+
+; not conditional element, will fire even if there are no cars, unlike ~
+; because not pattern matches on the absense of a fact
+; doesn't work on my version, says bad slot value :( 
+;(defrule no-red-cards-2
+;  (not (auto (color red)))
+;  =>)
+
+; we cannot def vars that are used in later patters in the LHS
+; we can introduce vars in a not pattern if only inside that pattern, ex
+(defrule no-odd-numbers
+  (not (number ?n&:(oddp ?n)))
+  =>
+  (printout t "There are no odd numbers." crlf))
+
+; if you want a rule to fire once and only once if for ever car 
+; of a given color, there exists a bus of the same color
+;(defrule forall-example
+;  (not (and (car (color ?c)) (not (bus (color ?c)))))
+;  =>)
+
+; exists conditional element
+(defrule exists-an-honest-man
+  (exists (honest ?))
+  =>
+  (printout t "There is a least one honest man!" crlf))
+
+; test conditional element
+; a test pattern fails iff the func evals the sylbol to FALSE
+(deftemplate person (slot age))
+(defrule find-trustworthy-people-1
+  (person (age ?x))
+  (test (< ?x 30))
+  =>
+  (printout t ?x " is under 30!" crlf))
+(reset)
+(assert (person (age 24)))
+(run)
+;; this is functionally equivalent to the following predicate constraint
+;; though the test syntax is a bit easier to read
+;(defrule find-trustworthy-people-2
+;  (person (age ?x&:(< ?x 30)))
+;  =>
+;  (printout t ?x " is under 30!" crlf))
+
+; test can also be used to write tests unrelated to any facts
+(import java.util.Date)
+(defrule fire-next-century
+  (test ((new Date) after (new Date "Dec 31 2099")))
+  =>
+  (printout t "Welcome to the 22nd century!" crlf))
+
+; combining not and test
+; (not (test (eq ?x 3)))
+; is the same as
+; (test (neq ?x 3))
+
+; Logical Dependence
+; expressing that we expect water to come out of an open faucet
+(defrule turn-water-on
+  (faucet open)
+  =>
+  (assert (water flowing)))
+(defrule turn-water-off
+  (not (faucet open))
+  ?water <- (water flowing)
+  =>
+  (retract ?water))
+
+; 7.3 example using logical
+(clear)
+(defrule water-flows-while-faucet-is-open
+  (logical (faucet open))
+  =>
+  (assert (water flowing)))
+(assert (faucet open))
+(run)
+(facts)
+(watch facts)
+(retract 0)
+(facts)
+; note if one or more logical CEs appear in a rule, they must the
+; first patterns in that rule, a logical CE cannot be preceded in
+; a rule by any other CE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Backward chaining rules ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; In backward chaining, the engine actively tries to make rules fire
+; if the if clause of one rule is only partially matched and the engine
+; can determine that firing some other rule would cause it to be fully 
+; matched then the engine tries to fire that second rule (how??)
+; often called goal seeking
+;
+; forward chaining can also be thought of as
+; drawing conclusions from available circumstances, adding conclusions to 
+; availbable info and continue until a link is found from evidence to end state
+;
+; backward chaining can also be thought of as
+; start from circumstance of a situation, form a hypothesis about
+; how it happened, then search for clues that support this hypothesis
+;
+; to use backward chaining in jess, you must first declare a specific 
+; deftemplate as backward-chaining reactive using the do-backward-chaining func
+(do-backward-chaining factorial)
+(defrule print-factorial-10
+  (factorial 10 ?r1)
+  => 
+  (printout t "The factorial of 10 is " ?r1 crlf))
+(defrule do-factorial
+  (need-factorial ?x ?)
+  =>
+  ;; compute the factorial of ?x in ?r
+  (bind ?r 1)
+  (bind ?n ?x)
+  (while (> ?n 1)
+    (bind ?r (* ?r ?n))
+    (bind ?n (- ?n 1)))
+  (assert (factorial ?x ?r)))
+(reset)
+(run)
+
+; 7.5.2 Defining rule priority w/ salience
+;
+; We can set salience eval methods w/ set-salience-evaluation
+;  and get-salience-evaluation, options are: when-defined (default),
+; when-activated, every-cycle (computationally expensive)
+;
+; Generally we don't want to use more than 2 or 3 rules w/ salience generally
+; if this is the case consider altering the algo to not be so sensitive to 
+; execution steps, not using a rule-based approach or using a function
+
+(defrule defer-exit-until-agenda-empty
+  (declare (salience -100))
+  (command exit-when-idle)
+  =>
+  (printout t "exiting..." crlf))
+
+; 7.6.1  def constructs in modules
+; modules define namespaces for templates and rules
+; MAIN is sort of a global namespace for templates as MAIN is searched last
+(clear)
+(reset)
+(defmodule WORK)
+(deftemplate WORK::job (slot salary))
+(list-deftemplates WORK)
+(get-current-module)
+(defmodule COMMUTE)
+(get-current-module)
+(deftemplate bus (slot route-number))
+(defrule take-the-bus
+  ?bus <- (bus (route-number 76))
+  (have-correct-change)
+  =>
+  (get-on ?bus))
+(printout t (ppdefrule take-the-bus) crlf)
+
+; Ex of Jess's template lookup rules
+(clear)
+(assert (MAIN::mortgage-payment 2000))
+(defmodule WORK)
+(deftemplate job (slot salary))
+(defmodule HOME)
+(deftemplate hobby (slot name) (slot income))
+(defrule WORK::quit-job
+  (job (salary ?s))
+  (HOME::hobby (income ?i&:(> ?i (/ ?s 2))))
+  (mortgage-payment ?m&:(< ?m ?i))
+  =>
+  (call-boss)
+  (quit-job))
+(printout t (ppdefrule WORK::quit-job) crlf)
+
+; 7.6.3 module focus and control
+; 
+; only modules in focus have their rules fire
+; note we can call focus on the RHS of a rule to change 
+; the focus while the engine is running
+;
+; focus works as a stack and is pushed on when calling focus
+; when there are no more activated rules in the focus module it is popped
+; we can also use the commands: pop-focus, clear-focus-stack,
+; list-focus-stack and get-focus-stack
+;
+; typically we divide modules into func areas, like 
+; input, data-processing, reporting
+
+(defmodule DRIVING)
+(defrule get-in-car
+  =>
+  (printout t "Ready to go!" crlf))
+(reset)
+(run)
+; we need to focus the DRIVING module to get the rule to fire
+(focus DRIVING)
+(run)
+
+; Auto-focus
+; when a rule reclares auto-focus, it's module gets the focus
+(defmodule PROBLEMS)
+(defrule crash
+  (declare (auto-focus TRUE))
+  (DRIVING::me ?location)
+  (DRIVING::other-car ?location)
+  =>
+  (printout t "Crash!" crlf)
+  (halt))
+(defrule DRIVING::travel
+  ?me <- (me ?location)
+  =>
+  (printout t ".")
+  (retract ?me)
+  (assert (me (+ ?location 1))))
+(assert (me 1))
+(assert (other-car 4))
+(focus DRIVING)
+(run)
