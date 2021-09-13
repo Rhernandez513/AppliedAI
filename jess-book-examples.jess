@@ -689,3 +689,42 @@
 (assert (other-car 4))
 (focus DRIVING)
 (run)
+
+; 7.7 Searching working memory w/ defquery
+;
+; A defquery is a special kind of rule w/ no RHS
+; a rule is activated once for each set of matching facts
+; whereas a query gives you a java.util.Iterator of all the matches
+; support we have defined the query find-affordable-gifts
+(deftemplate gift (slot name) (slot price))
+(defquery find-affordable-gifts
+  "Finds all gifts in a given price range"
+  (declare (variables ?lower ?upper))
+  (gift (price ?p&:(and (> ?p ?lower) (< ?p ?upper)))))
+; now we define some matching and some non-matching facts
+(deffacts catalog
+  (gift (name red-scarf) (price 20))
+  (gift (name leather-gloves) (price 35))
+  (gift (name angora-sweater) (price 250))
+  (gift (name mohair-sweater) (price 99))
+  (gift (name keychain) (price 5))
+  (gift (name socks) (price 6))
+  (gift (name leather-briefcase) (price 300)))
+(reset)
+(bind ?it (run-query find-affordable-gifts 20 100))
+(while (?it hasNext)
+  (bind ?token (call ?it next))
+  (bind ?fact (call ?token fact 1))
+  (bind ?name (fact-slot-value ?fact name))
+  (printout t ?name crlf))
+; We can also use count-query-results w/ the same param count as run-query
+; to get an integer w/ the # of matches only
+;
+; finally, to enable backwards chaining to work w/ queries we must limit
+; the amount of queries that execute because by default not rules fire
+; while a query is being executed, and we need (run) to be called
+(defquery find-factorial
+  (declare (max-background-rules 5)
+           (variables ?arg))
+  (factorial ?arg ?))
+  
