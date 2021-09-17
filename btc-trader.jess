@@ -1,0 +1,25 @@
+(deftemplate cryptocurrency
+  (slot name)
+  (slot symbol))
+(deftemplate cryptocurrencyTimeSeriesEntry
+  (slot symbol)
+  (slot timestep)
+  (slot price))
+(deftemplate cryptocurrencyCurrentMomentum
+  (slot symbol)
+  (slot slope))
+(deftemplate currentPosition
+  (slot symbol)
+  (slot amount)
+  (slot costbasis))
+;(defrule calc-slope
+ ; ...) 
+;(defrule [or deffunc?] manageRisk param: riskPercentage
+  ;;; using  10% riskPercentage
+  ; if slope >= 10% buy more 
+  ; if slope <= -10% exit position
+  ; if -10% < slope < 10% hold position
+  ; ... )
+;(deffunc readTimeSeriesEntry
+  ; ...
+  ; )
