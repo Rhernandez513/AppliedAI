@@ -4,11 +4,12 @@
 (deftemplate cryptocurrencyTimeSeriesEntry
   (slot symbol)
   (slot timestep)
-  (slot price))
-(deftemplate cryptocurrencyCurrentMomentum
+  (slot openPrice)
+  (slot closePrice))
+(deftemplate cryptocurrencyMomentum
   (slot symbol)
   (slot slope))
-(deftemplate currentPosition
+(deftemplate position 
   (slot symbol)
   (slot amount)
   (slot costbasis))
@@ -20,31 +21,38 @@
   ; if slope <= -10% exit position
   ; if -10% < slope < 10% hold position
   ; ... )
-;(deffunc readTimeSeriesEntry
-  ; ...
-  ; )
 
 ; ==========
-
 ; Read in raw data
-(import java.io.*)
-(bind ?file nil)
-(try
-  (bind ?file
-    (new BufferedReader
-      (new java.io.FileReader "btc_price_data.csv")))
-  (while (neq nil (bind ?line (?file readLine)))
-    (bind ?strVal (new java.lang.String ?line))
-    (bind ?firstComma (+ (call ?strVal indexOf ",") 1))
-    (bind ?secondComma (+ (call ?strVal indexOf "," ?firstComma) 1))
-    (bind ?openPrice (call ?strVal substring ?firstComma (- ?secondComma 1)))
-    (bind ?closePrice (call ?strVal substring ?secondComma))
-    ; (printout t ?openPrice crlf)
-    ;(printout t ?closePrice crlf))
-    (printout t "openPrice: " ?openPrice ", closePrice: " ?closePrice crlf))
-    ; (printout t ?line crlf))
- catch
-  (printout t "Error processing file" crlf)
- finally
-  (if (neq nil ?file) then
-      (?file close)))
+; ==========
+(deffunction parseInput (?csvFile)
+  (import java.io.*)
+  (bind ?file nil)
+  (try
+    (bind ?file
+      (new BufferedReader
+        (new java.io.FileReader ?csvFile)))
+    (while (neq nil (bind ?line (?file readLine)))
+      (bind ?strVal (new java.lang.String ?line))
+      (bind ?firstComma (+ (call ?strVal indexOf ",") 1))
+      (bind ?pointInTime (call ?strVal substring 0 (- ?firstComma 1)))
+      (bind ?secondComma (+ (call ?strVal indexOf "," ?firstComma) 1))
+      (bind ?openPrice (call ?strVal substring ?firstComma (- ?secondComma 1)))
+      (bind ?closePrice (call ?strVal substring ?secondComma))
+      (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?pointInTime) (openPrice ?openPrice) (closePrice ?closePrice))))
+   catch
+    (printout t "Error processing file" crlf)
+   finally
+    (if (neq nil ?file) then
+        (?file close))))
+
+
+; ==========
+; "main"
+; ==========
+(reset)
+(assert (cryptocurrency (name "Bitcoin") (symbol "BTC") ))
+(parseInput "btc_price_data.csv")
+; extra line only for readability
+(retract 2)
+(facts)
