@@ -37,6 +37,9 @@
   (slot timestep)
   (slot openPrice)
   (slot closePrice))
+(deftemplate xy_point
+  (slot timestep)
+  (slot price))
 (deftemplate cryptocurrencyMomentum
   (slot symbol)
   (slot slope))
@@ -58,6 +61,7 @@
       (new BufferedReader
         (new java.io.FileReader ?csvFile)))
     (while (neq nil (bind ?line (?file readLine)))
+      (bind ?idx 0)
       (bind ?strVal (new java.lang.String ?line))
       (bind ?firstComma (+ (call ?strVal indexOf ",") 1))
       (bind ?pointInTime (call ?strVal substring 0 (- ?firstComma 1)))
@@ -65,19 +69,23 @@
       (bind ?openPrice (call ?strVal substring ?firstComma (- ?secondComma 1)))
       (bind ?closePrice (call ?strVal substring ?secondComma))
       (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?pointInTime) (openPrice ?openPrice) (closePrice ?closePrice))))
-      (calc-slope ?factid))
+      (bind ?idx (+ ?idx 1))
+      (calc-slope ?factid ?idx))
    catch
     (printout t "Error processing file" crlf)
    finally
     (if (neq nil ?file) then
         (?file close))))
 
-(deffunction calc-slope (?tseid)
+(deffunction calc-slope (?tseid ?idx)
   (if (neq (fact-id 0) ?tseid) then
     (if (neq (fact-id 1) ?tseid) then
-      (printout t "dealing w/ real tse: " ?tseid crlf))))
-  ;(bind ?name (fact-slot-value ?factid openPrice))
-  ;(printout t "openPrice only from fact " ?name crlf)
+      (if (neq (fact-id 2) ?tseid) then
+          (bind ?x (fact-slot-value ?tseid openPrice))
+          (bind ?y (fact-slot-value ?tseid closePrice))
+          (bind ?slope (/ (- ?y ?x) 1))
+          (printout t "slope: " ?slope crlf)
+          (printout t "dealing w/ real tse: " ?tseid crlf)))))
 
 
 ; ==========
@@ -88,8 +96,9 @@
 (bind ?cash 100000)
 (parseInput "btc_price_data.csv")
 ; extra line only for readability
-;(retract 2)
+(retract 2)
 (facts)
+;(printout t "origin: " ?origin crlf)
 
 ;(defrule increase-position-if-positive-momentum
 ;  "If slope is suffeciently positive, buy."
