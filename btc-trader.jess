@@ -64,12 +64,20 @@
       (bind ?secondComma (+ (call ?strVal indexOf "," ?firstComma) 1))
       (bind ?openPrice (call ?strVal substring ?firstComma (- ?secondComma 1)))
       (bind ?closePrice (call ?strVal substring ?secondComma))
-      (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?pointInTime) (openPrice ?openPrice) (closePrice ?closePrice))))
+      (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?pointInTime) (openPrice ?openPrice) (closePrice ?closePrice))))
+      (calc-slope ?factid))
    catch
     (printout t "Error processing file" crlf)
    finally
     (if (neq nil ?file) then
         (?file close))))
+
+(deffunction calc-slope (?tseid)
+  (if (neq (fact-id 0) ?tseid) then
+    (if (neq (fact-id 1) ?tseid) then
+      (printout t "dealing w/ real tse: " ?tseid crlf))))
+  ;(bind ?name (fact-slot-value ?factid openPrice))
+  ;(printout t "openPrice only from fact " ?name crlf)
 
 
 ; ==========
@@ -77,7 +85,16 @@
 ; ==========
 (reset)
 (assert (cryptocurrency (name "Bitcoin") (symbol "BTC") ))
+(bind ?cash 100000)
 (parseInput "btc_price_data.csv")
 ; extra line only for readability
-(retract 2)
+;(retract 2)
 (facts)
+
+;(defrule increase-position-if-positive-momentum
+;  "If slope is suffeciently positive, buy."
+;  ?buy <- (positive-slope)
+;  =>
+;  (increase-position)
+;  (retract ?buy))
+
