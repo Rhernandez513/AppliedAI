@@ -40,6 +40,8 @@
 (deftemplate xy_point
   (slot timestep)
   (slot price))
+(deftemplate slope
+  (slot value))
 (deftemplate cryptocurrencyMomentum
   (slot symbol)
   (slot slope))
@@ -60,8 +62,8 @@
     (bind ?file
       (new BufferedReader
         (new java.io.FileReader ?csvFile)))
+    (bind ?idx 2)
     (while (neq nil (bind ?line (?file readLine)))
-      (bind ?idx 0)
       (bind ?strVal (new java.lang.String ?line))
       (bind ?firstComma (+ (call ?strVal indexOf ",") 1))
       (bind ?pointInTime (call ?strVal substring 0 (- ?firstComma 1)))
@@ -81,24 +83,30 @@
   (if (neq (fact-id 0) ?tseid) then
     (if (neq (fact-id 1) ?tseid) then
       (if (neq (fact-id 2) ?tseid) then
+        (if (neq (fact-id 3) ?tseid) then
+          (if (neq (fact-id 4) ?tseid) then
+            (printout t "overnight session commencing" crlf)
+            (bind ?first (fact-slot-value (fact-id (- ?idx 1)) closePrice))
+            (bind ?second (fact-slot-value (fact-id ?idx) openPrice))
+            (bind ?slope (/ (- ?second ?first) 2))
+            (modify 2 (value ?slope)))
+          (printout t "day session commencing " crlf)
           (bind ?x (fact-slot-value ?tseid openPrice))
           (bind ?y (fact-slot-value ?tseid closePrice))
-          (bind ?slope (/ (- ?y ?x) 1))
-          (printout t "slope: " ?slope crlf)
-          (printout t "dealing w/ real tse: " ?tseid crlf)))))
+          (bind ?slope (/ (- ?y ?x) 2))
+          (modify 2 (value ?slope)))))))
 
 
 ; ==========
 ; "main"
 ; ==========
 (reset)
+(watch facts)
 (assert (cryptocurrency (name "Bitcoin") (symbol "BTC") ))
 (bind ?cash 100000)
+(assert (slope (value 0)))
 (parseInput "btc_price_data.csv")
-; extra line only for readability
-(retract 2)
-(facts)
-;(printout t "origin: " ?origin crlf)
+;(facts)
 
 ;(defrule increase-position-if-positive-momentum
 ;  "If slope is suffeciently positive, buy."
@@ -106,4 +114,5 @@
 ;  =>
 ;  (increase-position)
 ;  (retract ?buy))
+
 
