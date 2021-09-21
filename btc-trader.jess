@@ -1,3 +1,4 @@
+(import java.lang.Double)
 ; ======== 
 ; rulesets 
 ; ========
@@ -60,6 +61,12 @@
   (slot amount))
 (deftemplate session
   (slot timeofday))
+(deftemplate spot
+  (slot price))
+(deftemplate twentydayMA
+  (slot value))
+(deftemplate ninetyninedayMA 
+  (slot value))
 
 ; ==========
 ; functions
@@ -81,11 +88,13 @@
       (bind ?secondComma (+ (call ?strVal indexOf "," ?firstComma) 1))
       (bind ?thirdComma (+ (call ?strVal indexOf "," ?secondComma) 1))
       (bind ?fourthComma(+ (call ?strVal indexOf "," ?thirdComma) 1))
-      (bind ?openPrice (call ?strVal substring ?firstComma (- ?secondComma 1)))
-      (bind ?closePrice (call ?strVal substring ?secondComma (- ?thirdComma 1)))
-      (bind ?twentydayMA (call ?strVal substring ?thirdComma (- ?fourthComma 1)))
-      (bind ?ninetyninedayMA (call ?strVal substring ?fourthComma))
+      (bind ?openPrice (call Double valueOf (call ?strVal substring ?firstComma (- ?secondComma 1))))
+      (bind ?closePrice (call Double valueOf (call ?strVal substring ?secondComma (- ?thirdComma 1))))
+      (bind ?twentydayMA (call Double valueOf (call Double valueOf (call ?strVal substring ?thirdComma (- ?fourthComma 1)))))
+      (bind ?ninetyninedayMA (call Double valueOf (call ?strVal substring ?fourthComma)))
       (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?marketDate) (openPrice ?openPrice) (closePrice ?closePrice) (twentydayMA ?twentydayMA) (ninetyninedayMA ?ninetyninedayMA))))
+      (modify 6 (value ?twentydayMA))
+      (modify 7 (value ?ninetyninedayMA))
       (calc-delta ?factid ?idx))
       (bind ?idx (+ ?idx 1))
    catch
@@ -95,19 +104,21 @@
         (?file close))))
 
 (deffunction calc-delta (?tseid ?idx)
-  (if (> ?tseid 4) then
+  (if (> ?tseid 8) then
     (if (eq day (fact-slot-value (fact-id 4) timeofday)) then
-      ;(printout t "day session" crlf)
       (bind ?x (fact-slot-value (fact-id ?tseid) openPrice))
+      (modify 5 (price ?x))
       (bind ?y (fact-slot-value (fact-id ?tseid) closePrice))
+      (modify 5 (price ?y))
       (bind ?delta (- ?y ?x))
       (modify 4 (timeofday night))
       (modify 3 (value ?delta)))
-    (if (> ?tseid 5) then
+    (if (> ?tseid 8) then
       (if (eq night (fact-slot-value (fact-id 4) timeofday)) then
-        ;(printout t "night session" crlf)
         (bind ?x (fact-slot-value (fact-id (- ?tseid 1)) closePrice))
+        (modify 5 (price ?x))
         (bind ?y (fact-slot-value (fact-id ?tseid) openPrice))
+        (modify 5 (price ?y))
         (bind ?delta (- ?y ?x))
         (modify 4 (timeofday day))
         (modify 3 (value ?delta))))))
@@ -117,9 +128,12 @@
 ; ==========
 (watch facts)
 (reset)
-(assert (currency (symbol USD) (amount 1000000)))
-(assert (currency (symbol BTC) (amount 0)))
-(assert (delta (value 0)))
+(assert (currency (symbol USD) (amount 1000000.00)))
+(assert (currency (symbol BTC) (amount 0.0)))
+(assert (delta (value 0.0)))
 (assert (session (timeofday day)))
+(assert (spot (price 0.0)))
+(assert (twentydayMA (value 0.0)))
+(assert (ninetyninedayMA (value 0.0)))
 (parseInput "btc_price_data_mod.csv")
-;(facts)
+(facts)
