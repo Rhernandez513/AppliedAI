@@ -251,7 +251,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Forward chaining rules ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defrule null-rull
+(defrule null-rule
   "A rule that does nothing"
   =>
 )
