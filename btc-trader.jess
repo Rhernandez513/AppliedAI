@@ -73,7 +73,7 @@
     (bind ?file
       (new BufferedReader
         (new java.io.FileReader ?csvFile)))
-    (bind ?idx 2)
+    (bind ?idx 5)
     (while (neq nil (bind ?line (?file readLine)))
       (bind ?strVal (new java.lang.String ?line))
       (bind ?firstComma (+ (call ?strVal indexOf ",") 1))
@@ -86,8 +86,8 @@
       (bind ?twentydayMA (call ?strVal substring ?thirdComma (- ?fourthComma 1)))
       (bind ?ninetyninedayMA (call ?strVal substring ?fourthComma))
       (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?marketDate) (openPrice ?openPrice) (closePrice ?closePrice) (twentydayMA ?twentydayMA) (ninetyninedayMA ?ninetyninedayMA))))
-      (bind ?idx (+ ?idx 1))
       (calc-slope ?factid ?idx))
+      (bind ?idx (+ ?idx 1))
    catch
     (printout t "Error processing file" crlf)
    finally
@@ -98,32 +98,27 @@
   (if (> ?tseid 4) then
     (if (eq day (fact-slot-value (fact-id 4) timeofday)) then
       (printout t "day session" crlf)
-      (bind ?x (fact-slot-value ?tseid openPrice))
-      (bind ?y (fact-slot-value ?tseid closePrice))
+      (printout t "binding openPrice" crlf)
+      (bind ?x (fact-slot-value (fact-id ?tseid) openPrice))
+      (printout t "binding closePrice" crlf)
+      (bind ?y (fact-slot-value (fact-id ?tseid) closePrice))
+      (printout t "calculating slope" crlf)
       (bind ?slope (/ (- ?y ?x) 2))
       (modify 4 (timeofday night))
       (modify 3 (value ?slope)))
-    (if (eq night (fact-slot-value (fact-id 4) timeofday)) then
-      (printout t "night session" crlf))
-      (bind ?first (fact-slot-value (fact-id (- ?idx 1)) closePrice))
-      (bind ?second (fact-slot-value (fact-id ?idx) openPrice))
-      (bind ?slope (/ (- ?second ?first) 2))
-      (modify 3 (value ?slope))))
-
-  (if (neq (fact-id 0) ?tseid) then
-    (if (neq (fact-id 1) ?tseid) then
-      (if (neq (fact-id 2) ?tseid) then
-        (if (neq (fact-id 3) ?tseid) then
-          (if (neq (fact-id 4) ?tseid) then
-            (bind ?first (fact-slot-value (fact-id (- ?idx 1)) closePrice))
-            (bind ?second (fact-slot-value (fact-id ?idx) openPrice))
-            (bind ?slope (/ (- ?second ?first) 2))
-            (modify 2 (value ?slope)))
-          (bind ?x (fact-slot-value ?tseid openPrice))
-          (bind ?y (fact-slot-value ?tseid closePrice))
-          (bind ?slope (/ (- ?y ?x) 2))
-          (modify 2 (value ?slope)))))))
-
+    (if (> ?tseid 5) then
+      (if (eq night (fact-slot-value (fact-id 4) timeofday)) then
+        (printout t "night session" crlf))
+        (printout t "binding closePrice" crlf)
+        (printout t (fact-slot-value (fact-id (- ?tseid 1)) symbol) crlf)
+        (bind ?x (fact-slot-value (fact-id (- ?tseid 1)) closePrice))
+        (printout t "binding openPrice" crlf)
+        (bind ?y (fact-slot-value (fact-id ?tseid) openPrice))
+        (printout t "calculating slope" crlf)
+        (printout t "?y-?x: " (- ?y ?x) crlf)
+        (bind ?slope (/ (- ?y ?x) 2))
+        (printout t "slope: " ?slope crlf)
+        (modify 3 (value ?slope)))))
 
 ; ==========
 ; "main"
