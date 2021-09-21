@@ -90,10 +90,18 @@
 
 (deffunction cash-available()
   (> (fact-slot-value (fact-id 1) amount) (fact-slot-value (fact-id 5) price)))
+(deffunction price-above-twenty-day-MA() 
+  (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 6) value)))
 
 ; ======== 
 ; rulesets 
 ; ========
+
+(defrule print-when-abovetwenty-day
+  ?sell <- (price-above-twenty-day-MA)
+  =>
+  (printout t "simulate a sell.." crlf)
+  (retract ?sell))
 
 ;(defrule increase-position-if-positive-momentum
 ;  "If delta is suffeciently positive, buy."
@@ -127,10 +135,12 @@
 ; ==========
 ; "main"
 ; ==========
-(watch facts)
+;(watch facts)
+(watch activations)
+(watch rules)
 (reset)
-(assert (currency (symbol USD) (amount 1000000.00)))
-(assert (currency (symbol BTC) (amount 0.0)))
+(assert (currency (symbol USD) (amount 1000000.00))) ; fact-id 1
+(assert (currency (symbol BTC) (amount 0.0)))        ; fact-id 2
 (assert (delta (value 0.0)))
 (assert (session (timeofday day)))
 (assert (spot (price 0.0)))
@@ -139,3 +149,4 @@
 (parseInput "btc_price_data_mod.csv")
 ;(facts)
 (printout t "cash available: " (cash-available) crlf)
+(printout t "price above 20 day: " (price-above-twenty-day-MA) crlf)
