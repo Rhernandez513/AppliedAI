@@ -55,8 +55,11 @@
   (slot symbol)
   (slot amount)
   (slot costbasis))
-(deftemplate cash
+(deftemplate currency
+  (slot symbol)
   (slot amount))
+(deftemplate session
+  (slot timeofday))
 
 ; ==========
 ; functions
@@ -92,6 +95,21 @@
         (?file close))))
 
 (deffunction calc-slope (?tseid ?idx)
+  (if (> ?tseid 4) then
+    (if (eq day (fact-slot-value (fact-id 4) timeofday)) then
+      (printout t "day session" crlf)
+      (bind ?x (fact-slot-value ?tseid openPrice))
+      (bind ?y (fact-slot-value ?tseid closePrice))
+      (bind ?slope (/ (- ?y ?x) 2))
+      (modify 4 (timeofday night))
+      (modify 3 (value ?slope)))
+    (if (eq night (fact-slot-value (fact-id 4) timeofday)) then
+      (printout t "night session" crlf))
+      (bind ?first (fact-slot-value (fact-id (- ?idx 1)) closePrice))
+      (bind ?second (fact-slot-value (fact-id ?idx) openPrice))
+      (bind ?slope (/ (- ?second ?first) 2))
+      (modify 3 (value ?slope))))
+
   (if (neq (fact-id 0) ?tseid) then
     (if (neq (fact-id 1) ?tseid) then
       (if (neq (fact-id 2) ?tseid) then
@@ -110,9 +128,12 @@
 ; ==========
 ; "main"
 ; ==========
-(watch facts)
+;(watch facts)
 (reset)
-(assert (cash (amount 100000)))
+(assert (currency (symbol USD) (amount 1000000)))
+(assert (currency (symbol BTC) (amount 0)))
 (assert (slope (value 0)))
+(assert (session (timeofday day)))
+(facts)
 (parseInput "btc_price_data_mod.csv")
-
+;(facts)
