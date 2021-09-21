@@ -2,6 +2,13 @@
 ; rulesets 
 ; ========
 
+;(defrule increase-position-if-positive-momentum
+;  "If slope is suffeciently positive, buy."
+;  ?buy <- (positive-slope)
+;  =>
+;  (increase-position)
+;  (retract ?buy))
+
 (defrule increase-risk-position
   ;(> slope 10%)
   ; and
@@ -36,19 +43,20 @@
   (slot symbol)
   (slot timestep)
   (slot openPrice)
-  (slot closePrice))
+  (slot closePrice)
+  (slot twentydayMA)
+  (slot ninetyninedayMA))
 (deftemplate xy_point
   (slot timestep)
   (slot price))
 (deftemplate slope
   (slot value))
-(deftemplate cryptocurrencyMomentum
-  (slot symbol)
-  (slot slope))
 (deftemplate position 
   (slot symbol)
   (slot amount)
   (slot costbasis))
+(deftemplate cash
+  (slot amount))
 
 ; ==========
 ; functions
@@ -66,11 +74,15 @@
     (while (neq nil (bind ?line (?file readLine)))
       (bind ?strVal (new java.lang.String ?line))
       (bind ?firstComma (+ (call ?strVal indexOf ",") 1))
-      (bind ?pointInTime (call ?strVal substring 0 (- ?firstComma 1)))
+      (bind ?marketDate (call ?strVal substring 0 (- ?firstComma 1)))
       (bind ?secondComma (+ (call ?strVal indexOf "," ?firstComma) 1))
+      (bind ?thirdComma (+ (call ?strVal indexOf "," ?secondComma) 1))
+      (bind ?fourthComma(+ (call ?strVal indexOf "," ?thirdComma) 1))
       (bind ?openPrice (call ?strVal substring ?firstComma (- ?secondComma 1)))
-      (bind ?closePrice (call ?strVal substring ?secondComma))
-      (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?pointInTime) (openPrice ?openPrice) (closePrice ?closePrice))))
+      (bind ?closePrice (call ?strVal substring ?secondComma (- ?thirdComma 1)))
+      (bind ?twentydayMA (call ?strVal substring ?thirdComma (- ?fourthComma 1)))
+      (bind ?ninetyninedayMA (call ?strVal substring ?fourthComma))
+      (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?marketDate) (openPrice ?openPrice) (closePrice ?closePrice) (twentydayMA ?twentydayMA) (ninetyninedayMA ?ninetyninedayMA))))
       (bind ?idx (+ ?idx 1))
       (calc-slope ?factid ?idx))
    catch
@@ -85,12 +97,10 @@
       (if (neq (fact-id 2) ?tseid) then
         (if (neq (fact-id 3) ?tseid) then
           (if (neq (fact-id 4) ?tseid) then
-            (printout t "overnight session commencing" crlf)
             (bind ?first (fact-slot-value (fact-id (- ?idx 1)) closePrice))
             (bind ?second (fact-slot-value (fact-id ?idx) openPrice))
             (bind ?slope (/ (- ?second ?first) 2))
             (modify 2 (value ?slope)))
-          (printout t "day session commencing " crlf)
           (bind ?x (fact-slot-value ?tseid openPrice))
           (bind ?y (fact-slot-value ?tseid closePrice))
           (bind ?slope (/ (- ?y ?x) 2))
@@ -100,19 +110,9 @@
 ; ==========
 ; "main"
 ; ==========
-(reset)
 (watch facts)
-(assert (cryptocurrency (name "Bitcoin") (symbol "BTC") ))
-(bind ?cash 100000)
+(reset)
+(assert (cash (amount 100000)))
 (assert (slope (value 0)))
-(parseInput "btc_price_data.csv")
-;(facts)
-
-;(defrule increase-position-if-positive-momentum
-;  "If slope is suffeciently positive, buy."
-;  ?buy <- (positive-slope)
-;  =>
-;  (increase-position)
-;  (retract ?buy))
-
+(parseInput "btc_price_data_mod.csv")
 
