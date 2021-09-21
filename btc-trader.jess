@@ -1,40 +1,5 @@
 (import java.lang.Double)
 ; ======== 
-; rulesets 
-; ========
-
-;(defrule increase-position-if-positive-momentum
-;  "If delta is suffeciently positive, buy."
-;  ?buy <- (positive-delta)
-;  =>
-;  (increase-position)
-;  (retract ?buy))
-
-(defrule increase-risk-position
-  ;(> delta 10%)
-  ; and
-  ;(cash-available)
-  =>
-  ; todo get global avail var w/ wallet
-  ; (assert (trade(order buy) (amount (get-cash-available * 0.1
-)
-
-;(defrule decrease-risk-position
-  ;(< delta 10%)
-;  =>
-;  (assert (order buy))
-;)
-
-;(defrule calc-delta
- ; ...) 
-;(defrule [or deffunc?] manageRisk param: riskPercentage
-  ;;; using  10% riskPercentage
-  ; if delta >= 10% buy more 
-  ; if delta <= -10% exit position
-  ; if -10% < delta < 10% hold position
-  ; ... )
-
-; ======== 
 ; templates
 ; ========
 (deftemplate cryptocurrency
@@ -123,6 +88,42 @@
         (modify 4 (timeofday day))
         (modify 3 (value ?delta))))))
 
+(deffunction cash-available()
+  (> (fact-slot-value (fact-id 1) amount) (fact-slot-value (fact-id 5) price)))
+
+; ======== 
+; rulesets 
+; ========
+
+;(defrule increase-position-if-positive-momentum
+;  "If delta is suffeciently positive, buy."
+;  ?buy <- (positive-delta)
+;  =>
+;  (increase-position)
+;  (retract ?buy))
+
+(defrule increase-risk-position
+  ;(> delta 10%)
+  ; and
+  ;(cash-available)
+  =>
+  ; todo get global avail var w/ wallet
+  ; (assert (trade(order buy) (amount (get-cash-available * 0.1
+)
+
+;(defrule decrease-risk-position
+  ;(< delta 10%)
+;  =>
+;  (assert (order buy))
+;)
+
+;(defrule [or deffunc?] manageRisk param: riskPercentage
+  ;;; using  10% riskPercentage
+  ; if delta >= 10% buy more 
+  ; if delta <= -10% exit position
+  ; if -10% < delta < 10% hold position
+  ; ... )
+
 ; ==========
 ; "main"
 ; ==========
@@ -136,4 +137,5 @@
 (assert (twentydayMA (value 0.0)))
 (assert (ninetyninedayMA (value 0.0)))
 (parseInput "btc_price_data_mod.csv")
-(facts)
+;(facts)
+(printout t "cash available: " (cash-available) crlf)
