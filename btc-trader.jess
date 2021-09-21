@@ -55,21 +55,27 @@
       (bind ?twentydayMA (call Double valueOf (call Double valueOf (call ?strVal substring ?thirdComma (- ?fourthComma 1)))))
       (bind ?ninetyninedayMA (call Double valueOf (call ?strVal substring ?fourthComma)))
       (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?marketDate) (openPrice ?openPrice) (closePrice ?closePrice) (twentydayMA ?twentydayMA) (ninetyninedayMA ?ninetyninedayMA))))
-      (modify 6 (value ?twentydayMA))
-(assert (check-twenty-day))
-(run)
-      (modify 7 (value ?ninetyninedayMA))
-;(assert (ninety-nine-day))
-;(run)
-      (calc-delta ?factid ?idx))
-      (bind ?idx (+ ?idx 1))
+      (bind ?idx (+ ?idx 1)))
    catch
     (printout t "Error processing file" crlf)
    finally
     (if (neq nil ?file) then
         (?file close))))
 
-(deffunction calc-delta (?tseid ?idx)
+(deffunction crunch-data()
+  (bind ?idx 8)
+  (bind ?end 37)
+  (while (< ?idx ?end)
+    (bind ?idx (+ ?idx 1))
+    (modify 6 (value (fact-slot-value (fact-id ?idx) twentydayMA)))
+    (modify 7 (value (fact-slot-value (fact-id ?idx) ninetyninedayMA)))
+    (calc-delta ?idx)
+    (assert (check-ninety-nine-day))
+    (run)))
+    ;(assert (check-twenty-day)
+    
+
+(deffunction calc-delta (?tseid)
   (if (> ?tseid 8) then
     (if (eq day (fact-slot-value (fact-id 4) timeofday)) then
       (bind ?x (fact-slot-value (fact-id ?tseid) openPrice))
@@ -147,7 +153,7 @@
 ; ==========
 (reset)
 ;(watch facts)
-;(watch activations)
+(watch activations)
 (watch rules)
 (assert (currency (symbol USD) (amount 1000000.00))) ; fact-id 1
 (assert (currency (symbol BTC) (amount 0.0)))        ; fact-id 2
@@ -157,6 +163,7 @@
 (assert (twentydayMA (value 0.0)))
 (assert (ninetyninedayMA (value 0.0)))
 (parseInput "btc_price_data_mod.csv")
+(crunch-data)
 ;(facts)
 (printout t "cash available: " (cash-available) crlf)
 (printout t "price above 20 day: " (price-above-twenty-day-MA) crlf)
