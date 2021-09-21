@@ -39,6 +39,11 @@
 ; functions
 ; ==========
 
+; read in user input
+(deffunction ask-user (?question)
+  (printout t ?question " ")
+  (return (read)))
+
 ; Read in raw data
 (deffunction parseInput (?csvFile)
   (import java.io.*)
@@ -69,7 +74,8 @@
 
 (deffunction crunch-data()
   (bind ?idx 8)
-  (bind ?end 37)
+  ;(bind ?end 37)
+  (bind ?end (+ 7 ?*file-length*))
   (while (< ?idx ?end)
     (bind ?idx (+ ?idx 1))
     (modify 6 (value (fact-slot-value (fact-id ?idx) twentydayMA)))
@@ -180,7 +186,10 @@
 (assert (spot (price 0.0)))
 (assert (twentydayMA (value 0.0)))
 (assert (ninetyninedayMA (value 0.0)))
-(parseInput "btc_price_data_mod.csv")
+(bind ?filename (ask-user "filename?"))
+(bind ?*file-length*  (ask-user "datapoints in file?"))
+(parseInput ?filename)
+;(parseInput "btc_price_data_mod.csv")
 (crunch-data)
 (facts)
 (printout t "cost-basis: " ?*cost-basis* crlf)

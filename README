@@ -5,3 +5,42 @@ Professor Piotr Gmytrasiewicz
 Part 1 Expert Systems
   We will be using Jess to build out a first basic expert system
   https://www.manning.com/books/jess-in-action
+
+  the full dataset is btc_price_data_mod.csv can be run as 3 timeslots using
+    btc_price_data_mod_1.csv
+    btc_price_data_mod_2.csv
+    btc_price_data_mod_3.csv
+
+  when prompted, enter the file name and press enter.
+  then when prompted enter the count of lines in the file
+
+  for the chunked files provided you can enter 10
+  if you want to run the whole dataset you can enter 30
+
+  EX 1:
+  $ java -cp jess/Jess61p4/jess.jar jess.Main btc-trader.jess  
+  filename? btc_price_data_mod_1.csv (return)
+  datapoint in file? 10 (return)
+  
+  [Program output is displayed]
+
+  EX 2:
+  $ java -cp jess/Jess61p4/jess.jar jess.Main btc-trader.jess  
+  filename? btc_price_data_mod_2.csv (return)
+  datapoint in file? 10 (return)
+  
+  [Program output is displayed]
+
+  EX 3:
+  $ java -cp jess/Jess61p4/jess.jar jess.Main btc-trader.jess  
+  filename? btc_price_data_mod_3.csv (return)
+  datapoint in file? 10 (return)
+  
+  [Program output is displayed]
+
+  EX 4 (run all data at once):
+  $ java -cp jess/Jess61p4/jess.jar jess.Main btc-trader.jess  
+  filename? btc_price_data_mod.csv (return)
+  datapoint in file? 30 (return)
+  
+  [Program output is displayed]
