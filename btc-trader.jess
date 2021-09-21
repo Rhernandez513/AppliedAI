@@ -2,9 +2,6 @@
 ; ======== 
 ; templates
 ; ========
-(deftemplate cryptocurrency
-  (slot name)
-  (slot symbol))
 (deftemplate cryptocurrencyTimeSeriesEntry
   (slot symbol)
   (slot timestep)
@@ -18,9 +15,17 @@
   (slot symbol)
   (slot amount)
   (slot costbasis))
-(deftemplate currency
+(deftemplate dollars
   (slot symbol)
   (slot amount))
+(deftemplate bitcoin
+  (slot symbol)
+  (slot amount)
+  (slot cost-basis))
+;(deftemplate currency
+;  (slot symbol)
+;  (slot amount)
+;  (slot cost-basis))
 (deftemplate session
   (slot timeofday))
 (deftemplate spot
@@ -101,62 +106,75 @@
   (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 6) value)))
 (deffunction price-above-ninetynine-day-MA() 
   (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 7) value)))
+(deffunction price-below-ninetynine-day-MA() 
+  (< (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 7) value)))
+
+(deffunction simulate-buy (?amount ?price-per-coin)
+  (bind ?order-size (* ?amount ?price-per-coin))
+  (if (> ?*cash* ?order-size) then
+    ; quick and dirty cost basis update
+    ; average cost so far + average cost of new coins / 2
+    ;(bind ?current-basis (fact-slot-value (fact-id 2) cost-basis))
+    (bind ?current-basis ?*cost-basis*)
+    (bind ?newbasis (/ (+ ?current-basis ?price-per-coin) 2))
+    ;(modify 2 (cost-basis ?newbasis))
+    (bind ?*cost-basis* ?newbasis)
+
+    ; "execute" the buy
+    (bind ?*cash* (- ?*cash* ?order-size))
+    ;(modify 1 (amount (- (fact-slot-value (fact-id 1) amount) ?order-size)))
+    ;(modify 2 (amount (+ (fact-slot-value (fact-id 2) amount) (?amount))))
+    (bind ?*btc* (+ ?*btc* ?amount))
+    (printout t "sold BTC " ?amount " for $" ?order-size crlf)))
+
+(deffunction simulate-sell (?amount ?price-per-coin)
+  (bind ?amount-held (fact-slot-value (fact-id 2) amount))
+  (bind ?order-size (* ?amount ?price-per-coin))
+
+  (if (>= ?amount-held ?amount) then
+    (bind ?order-size (* ?amount ?price-per-coin))
+    ; "execute" the sell
+    (bind ?*cash* (+ ?*cash* ?order-size))
+    (bind ?*btc* (- ?*btc* ?amount))
+    ;(modify 1 (+ (fact-slot-value (fact-id 1) amount) ?order-size))
+    ;(modify 2 (- (fact-slot-value (fact-id 2) amount) ?amount))
+    (printout t "sold BTC" ?amount " for $" ?order-size crlf)))
 
 ; ======== 
 ; rulesets 
 ; ========
-(defrule print-when-abovetwenty-day
-  ?x <- (check-twenty-day)
-  =>
-  (if (price-above-twenty-day-MA) then
-    (printout t "simulate a sell.." crlf))
-  (retract ?x))
+;(defrule twenty-day-rule
+;  ?x <- (check-twenty-day)
+;  =>
+;  (if (price-above-twenty-day-MA) then
+;    (printout t "simulate a sell.." crlf))
+;  (retract ?x))
 
-(defrule print-when-aboveninetynine-day
+(defrule ninetynine-day-rule
   ?y <- (check-ninety-nine-day)
   =>
+  ;(bind ?cash (fact-slot-value (fact-id 1) amount))
   (if (price-above-ninetynine-day-MA) then
-    (printout t "simulate a double sell.." crlf))
+    (simulate-sell 2 (fact-slot-value (fact-id 5) price)) 
+    (printout t "simulate a sell.." crlf))
+  (if (price-below-ninetynine-day-MA) then
+    (simulate-buy 2 (fact-slot-value (fact-id 5) price))
+    (printout t "simulate a buy.." crlf))
   (retract ?y))
 
-;(defrule increase-position-if-positive-momentum
-;  "If delta is suffeciently positive, buy."
-;  ?buy <- (positive-delta)
-;  =>
-;  (increase-position)
-;  (retract ?buy))
-
-(defrule increase-risk-position
-  ;(> delta 10%)
-  ; and
-  ;(cash-available)
-  =>
-  ; todo get global avail var w/ wallet
-  ; (assert (trade(order buy) (amount (get-cash-available * 0.1
-)
-
-;(defrule decrease-risk-position
-  ;(< delta 10%)
-;  =>
-;  (assert (order buy))
-;)
-
-;(defrule [or deffunc?] manageRisk param: riskPercentage
-  ;;; using  10% riskPercentage
-  ; if delta >= 10% buy more 
-  ; if delta <= -10% exit position
-  ; if -10% < delta < 10% hold position
-  ; ... )
 
 ; ==========
 ; "main"
 ; ==========
 (reset)
-;(watch facts)
 (watch activations)
 (watch rules)
-(assert (currency (symbol USD) (amount 1000000.00))) ; fact-id 1
-(assert (currency (symbol BTC) (amount 0.0)))        ; fact-id 2
+; fact-id 1; avoid divide by zero; lets say there's sign up fee
+(defglobal ?*cash* = 1000000.00)
+(defglobal ?*btc* = 0.0)
+(defglobal ?*cost-basis* = 0.1)
+(assert (dollars (symbol USD) (amount 1000000.00)))
+(assert (bitcoin (symbol BTC) (amount 0.0) (cost-basis 0.1)))
 (assert (delta (value 0.0)))
 (assert (session (timeofday day)))
 (assert (spot (price 0.0)))
@@ -164,6 +182,11 @@
 (assert (ninetyninedayMA (value 0.0)))
 (parseInput "btc_price_data_mod.csv")
 (crunch-data)
-;(facts)
-(printout t "cash available: " (cash-available) crlf)
-(printout t "price above 20 day: " (price-above-twenty-day-MA) crlf)
+(facts)
+(printout t "cost-basis: " ?*cost-basis* crlf)
+(printout t "cash: $" ?*cash* crlf)
+(printout t "BTC " ?*btc* crlf)
+(bind ?btccashvalue (* ?*btc* (fact-slot-value (fact-id 5) price)) crlf)
+(printout t "USD value of btc: " ?btccashvalue crlf)
+(printout t "Total USD value: $" (+ ?btccashvalue ?*cash*) crlf)
+
