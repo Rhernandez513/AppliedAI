@@ -18,11 +18,11 @@
   ; (assert (trade(order buy) (amount (get-cash-available * 0.1
 )
 
-(defrule decrease-risk-position
+;(defrule decrease-risk-position
   ;(< delta 10%)
-  =>
-  (assert (order buy))
-)
+;  =>
+;  (assert (order buy))
+;)
 
 ;(defrule calc-delta
  ; ...) 
@@ -105,12 +105,12 @@
       (modify 3 (value ?delta)))
     (if (> ?tseid 5) then
       (if (eq night (fact-slot-value (fact-id 4) timeofday)) then
-        ;(printout t "night session" crlf))
+        ;(printout t "night session" crlf)
         (bind ?x (fact-slot-value (fact-id (- ?tseid 1)) closePrice))
         (bind ?y (fact-slot-value (fact-id ?tseid) openPrice))
         (bind ?delta (- ?y ?x))
         (modify 4 (timeofday day))
-        (modify 3 (value ?delta)))))
+        (modify 3 (value ?delta))))))
 
 ; ==========
 ; "main"
@@ -121,6 +121,5 @@
 (assert (currency (symbol BTC) (amount 0)))
 (assert (delta (value 0)))
 (assert (session (timeofday day)))
-(facts)
 (parseInput "btc_price_data_mod.csv")
 ;(facts)
