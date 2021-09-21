@@ -12,9 +12,6 @@
   (slot closePrice)
   (slot twentydayMA)
   (slot ninetyninedayMA))
-(deftemplate xy_point
-  (slot timestep)
-  (slot price))
 (deftemplate delta
   (slot value))
 (deftemplate position 
@@ -59,7 +56,11 @@
       (bind ?ninetyninedayMA (call Double valueOf (call ?strVal substring ?fourthComma)))
       (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?marketDate) (openPrice ?openPrice) (closePrice ?closePrice) (twentydayMA ?twentydayMA) (ninetyninedayMA ?ninetyninedayMA))))
       (modify 6 (value ?twentydayMA))
+(assert (check-twenty-day))
+(run)
       (modify 7 (value ?ninetyninedayMA))
+;(assert (ninety-nine-day))
+;(run)
       (calc-delta ?factid ?idx))
       (bind ?idx (+ ?idx 1))
    catch
@@ -92,16 +93,25 @@
   (> (fact-slot-value (fact-id 1) amount) (fact-slot-value (fact-id 5) price)))
 (deffunction price-above-twenty-day-MA() 
   (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 6) value)))
+(deffunction price-above-ninetynine-day-MA() 
+  (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 7) value)))
 
 ; ======== 
 ; rulesets 
 ; ========
-
 (defrule print-when-abovetwenty-day
-  ?sell <- (price-above-twenty-day-MA)
+  ?x <- (check-twenty-day)
   =>
-  (printout t "simulate a sell.." crlf)
-  (retract ?sell))
+  (if (price-above-twenty-day-MA) then
+    (printout t "simulate a sell.." crlf))
+  (retract ?x))
+
+(defrule print-when-aboveninetynine-day
+  ?y <- (check-ninety-nine-day)
+  =>
+  (if (price-above-ninetynine-day-MA) then
+    (printout t "simulate a double sell.." crlf))
+  (retract ?y))
 
 ;(defrule increase-position-if-positive-momentum
 ;  "If delta is suffeciently positive, buy."
@@ -135,10 +145,10 @@
 ; ==========
 ; "main"
 ; ==========
-;(watch facts)
-(watch activations)
-(watch rules)
 (reset)
+;(watch facts)
+;(watch activations)
+(watch rules)
 (assert (currency (symbol USD) (amount 1000000.00))) ; fact-id 1
 (assert (currency (symbol BTC) (amount 0.0)))        ; fact-id 2
 (assert (delta (value 0.0)))
