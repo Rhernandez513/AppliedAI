@@ -17,6 +17,9 @@ Part 1 Expert Systems
   for the chunked files provided you can enter 10
   if you want to run the whole dataset you can enter 30
 
+  if you want to create your own dataset, the format in the datafiles is:
+  "index,openPrice,closePrice,20-day-moving-average,99-day-moving-average"
+
   EX 1:
   $ java -cp jess/Jess61p4/jess.jar jess.Main btc-trader.jess  
   filename? btc_price_data_mod_1.csv (return)
