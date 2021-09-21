@@ -3,14 +3,14 @@
 ; ========
 
 ;(defrule increase-position-if-positive-momentum
-;  "If slope is suffeciently positive, buy."
-;  ?buy <- (positive-slope)
+;  "If delta is suffeciently positive, buy."
+;  ?buy <- (positive-delta)
 ;  =>
 ;  (increase-position)
 ;  (retract ?buy))
 
 (defrule increase-risk-position
-  ;(> slope 10%)
+  ;(> delta 10%)
   ; and
   ;(cash-available)
   =>
@@ -19,18 +19,18 @@
 )
 
 (defrule decrease-risk-position
-  ;(< slope 10%)
+  ;(< delta 10%)
   =>
   (assert (order buy))
 )
 
-;(defrule calc-slope
+;(defrule calc-delta
  ; ...) 
 ;(defrule [or deffunc?] manageRisk param: riskPercentage
   ;;; using  10% riskPercentage
-  ; if slope >= 10% buy more 
-  ; if slope <= -10% exit position
-  ; if -10% < slope < 10% hold position
+  ; if delta >= 10% buy more 
+  ; if delta <= -10% exit position
+  ; if -10% < delta < 10% hold position
   ; ... )
 
 ; ======== 
@@ -49,7 +49,7 @@
 (deftemplate xy_point
   (slot timestep)
   (slot price))
-(deftemplate slope
+(deftemplate delta
   (slot value))
 (deftemplate position 
   (slot symbol)
@@ -86,7 +86,7 @@
       (bind ?twentydayMA (call ?strVal substring ?thirdComma (- ?fourthComma 1)))
       (bind ?ninetyninedayMA (call ?strVal substring ?fourthComma))
       (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?marketDate) (openPrice ?openPrice) (closePrice ?closePrice) (twentydayMA ?twentydayMA) (ninetyninedayMA ?ninetyninedayMA))))
-      (calc-slope ?factid ?idx))
+      (calc-delta ?factid ?idx))
       (bind ?idx (+ ?idx 1))
    catch
     (printout t "Error processing file" crlf)
@@ -94,40 +94,32 @@
     (if (neq nil ?file) then
         (?file close))))
 
-(deffunction calc-slope (?tseid ?idx)
+(deffunction calc-delta (?tseid ?idx)
   (if (> ?tseid 4) then
     (if (eq day (fact-slot-value (fact-id 4) timeofday)) then
-      (printout t "day session" crlf)
-      (printout t "binding openPrice" crlf)
+      ;(printout t "day session" crlf)
       (bind ?x (fact-slot-value (fact-id ?tseid) openPrice))
-      (printout t "binding closePrice" crlf)
       (bind ?y (fact-slot-value (fact-id ?tseid) closePrice))
-      (printout t "calculating slope" crlf)
-      (bind ?slope (/ (- ?y ?x) 2))
+      (bind ?delta (- ?y ?x))
       (modify 4 (timeofday night))
-      (modify 3 (value ?slope)))
+      (modify 3 (value ?delta)))
     (if (> ?tseid 5) then
       (if (eq night (fact-slot-value (fact-id 4) timeofday)) then
-        (printout t "night session" crlf))
-        (printout t "binding closePrice" crlf)
-        (printout t (fact-slot-value (fact-id (- ?tseid 1)) symbol) crlf)
+        ;(printout t "night session" crlf))
         (bind ?x (fact-slot-value (fact-id (- ?tseid 1)) closePrice))
-        (printout t "binding openPrice" crlf)
         (bind ?y (fact-slot-value (fact-id ?tseid) openPrice))
-        (printout t "calculating slope" crlf)
-        (printout t "?y-?x: " (- ?y ?x) crlf)
-        (bind ?slope (/ (- ?y ?x) 2))
-        (printout t "slope: " ?slope crlf)
-        (modify 3 (value ?slope)))))
+        (bind ?delta (- ?y ?x))
+        (modify 4 (timeofday day))
+        (modify 3 (value ?delta)))))
 
 ; ==========
 ; "main"
 ; ==========
-;(watch facts)
+(watch facts)
 (reset)
 (assert (currency (symbol USD) (amount 1000000)))
 (assert (currency (symbol BTC) (amount 0)))
-(assert (slope (value 0)))
+(assert (delta (value 0)))
 (assert (session (timeofday day)))
 (facts)
 (parseInput "btc_price_data_mod.csv")
