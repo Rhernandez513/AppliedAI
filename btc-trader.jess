@@ -82,8 +82,8 @@
     (modify 7 (value (fact-slot-value (fact-id ?idx) ninetyninedayMA)))
     (calc-delta ?idx)
     (assert (check-ninety-nine-day))
+    (assert (check-twenty-day))
     (run)))
-    ;(assert (check-twenty-day)
     
 
 (deffunction calc-delta (?tseid)
@@ -110,6 +110,8 @@
   (> (fact-slot-value (fact-id 1) amount) (fact-slot-value (fact-id 5) price)))
 (deffunction price-above-twenty-day-MA() 
   (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 6) value)))
+(deffunction price-below-twenty-day-MA() 
+  (< (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 6) value)))
 (deffunction price-above-ninetynine-day-MA() 
   (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 7) value)))
 (deffunction price-below-ninetynine-day-MA() 
@@ -149,12 +151,16 @@
 ; ======== 
 ; rulesets 
 ; ========
-;(defrule twenty-day-rule
-;  ?x <- (check-twenty-day)
-;  =>
-;  (if (price-above-twenty-day-MA) then
-;    (printout t "simulate a sell.." crlf))
-;  (retract ?x))
+(defrule twenty-day-rule
+  ?x <- (check-twenty-day)
+  =>
+  (if (price-above-twenty-day-MA) then
+    (simulate-sell 1 (fact-slot-value (fact-id 5) price)))
+    (printout t "Sold 1 BTC.." crlf)
+  (if (price-below-twenty-day-MA) then
+    (simulate-buy 1 (fact-slot-value (fact-id 5) price))
+    (printout t "Bought 1 BTC.." crlf))
+  (retract ?x))
 
 (defrule ninetynine-day-rule
   ?y <- (check-ninety-nine-day)
@@ -162,10 +168,10 @@
   ;(bind ?cash (fact-slot-value (fact-id 1) amount))
   (if (price-above-ninetynine-day-MA) then
     (simulate-sell 2 (fact-slot-value (fact-id 5) price)) 
-    (printout t "simulate a sell.." crlf))
+    (printout t "Sold 2 BTC.." crlf))
   (if (price-below-ninetynine-day-MA) then
     (simulate-buy 2 (fact-slot-value (fact-id 5) price))
-    (printout t "simulate a buy.." crlf))
+    (printout t "Bought 1 BTC.." crlf))
   (retract ?y))
 
 
