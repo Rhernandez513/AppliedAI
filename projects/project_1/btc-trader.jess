@@ -1,0 +1,207 @@
+(import java.lang.Double)
+; ======== 
+; templates
+; ========
+(deftemplate cryptocurrencyTimeSeriesEntry
+  (slot symbol)
+  (slot timestep)
+  (slot openPrice)
+  (slot closePrice)
+  (slot twentydayMA)
+  (slot ninetyninedayMA))
+(deftemplate delta
+  (slot value))
+(deftemplate position 
+  (slot symbol)
+  (slot amount)
+  (slot costbasis))
+(deftemplate dollars
+  (slot symbol)
+  (slot amount))
+(deftemplate bitcoin
+  (slot symbol)
+  (slot amount)
+  (slot cost-basis))
+;(deftemplate currency
+;  (slot symbol)
+;  (slot amount)
+;  (slot cost-basis))
+(deftemplate session
+  (slot timeofday))
+(deftemplate spot
+  (slot price))
+(deftemplate twentydayMA
+  (slot value))
+(deftemplate ninetyninedayMA 
+  (slot value))
+
+; ==========
+; functions
+; ==========
+
+; read in user input
+(deffunction ask-user (?question)
+  (printout t ?question " ")
+  (return (read)))
+
+; Read in raw data
+(deffunction parseInput (?csvFile)
+  (import java.io.*)
+  (bind ?file nil)
+  (try
+    (bind ?file
+      (new BufferedReader
+        (new java.io.FileReader ?csvFile)))
+    (bind ?idx 5)
+    (while (neq nil (bind ?line (?file readLine)))
+      (bind ?strVal (new java.lang.String ?line))
+      (bind ?firstComma (+ (call ?strVal indexOf ",") 1))
+      (bind ?marketDate (call ?strVal substring 0 (- ?firstComma 1)))
+      (bind ?secondComma (+ (call ?strVal indexOf "," ?firstComma) 1))
+      (bind ?thirdComma (+ (call ?strVal indexOf "," ?secondComma) 1))
+      (bind ?fourthComma(+ (call ?strVal indexOf "," ?thirdComma) 1))
+      (bind ?openPrice (call Double valueOf (call ?strVal substring ?firstComma (- ?secondComma 1))))
+      (bind ?closePrice (call Double valueOf (call ?strVal substring ?secondComma (- ?thirdComma 1))))
+      (bind ?twentydayMA (call Double valueOf (call Double valueOf (call ?strVal substring ?thirdComma (- ?fourthComma 1)))))
+      (bind ?ninetyninedayMA (call Double valueOf (call ?strVal substring ?fourthComma)))
+      (bind ?factid (assert (cryptocurrencyTimeSeriesEntry (symbol "BTC") (timestep ?marketDate) (openPrice ?openPrice) (closePrice ?closePrice) (twentydayMA ?twentydayMA) (ninetyninedayMA ?ninetyninedayMA))))
+      (bind ?idx (+ ?idx 1)))
+   catch
+    (printout t "Error processing file" crlf)
+   finally
+    (if (neq nil ?file) then
+        (?file close))))
+
+(deffunction crunch-data()
+  (bind ?idx 8)
+  ;(bind ?end 37)
+  (bind ?end (+ 7 ?*file-length*))
+  (while (< ?idx ?end)
+    (bind ?idx (+ ?idx 1))
+    (modify 6 (value (fact-slot-value (fact-id ?idx) twentydayMA)))
+    (modify 7 (value (fact-slot-value (fact-id ?idx) ninetyninedayMA)))
+    (calc-delta ?idx)
+    (assert (check-ninety-nine-day))
+    (assert (check-twenty-day))
+    (run)))
+    
+
+(deffunction calc-delta (?tseid)
+  (if (> ?tseid 8) then
+    (if (eq day (fact-slot-value (fact-id 4) timeofday)) then
+      (bind ?x (fact-slot-value (fact-id ?tseid) openPrice))
+      (modify 5 (price ?x))
+      (bind ?y (fact-slot-value (fact-id ?tseid) closePrice))
+      (modify 5 (price ?y))
+      (bind ?delta (- ?y ?x))
+      (modify 4 (timeofday night))
+      (modify 3 (value ?delta)))
+    (if (> ?tseid 8) then
+      (if (eq night (fact-slot-value (fact-id 4) timeofday)) then
+        (bind ?x (fact-slot-value (fact-id (- ?tseid 1)) closePrice))
+        (modify 5 (price ?x))
+        (bind ?y (fact-slot-value (fact-id ?tseid) openPrice))
+        (modify 5 (price ?y))
+        (bind ?delta (- ?y ?x))
+        (modify 4 (timeofday day))
+        (modify 3 (value ?delta))))))
+
+(deffunction cash-available()
+  (> (fact-slot-value (fact-id 1) amount) (fact-slot-value (fact-id 5) price)))
+(deffunction price-above-twenty-day-MA() 
+  (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 6) value)))
+(deffunction price-below-twenty-day-MA() 
+  (< (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 6) value)))
+(deffunction price-above-ninetynine-day-MA() 
+  (> (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 7) value)))
+(deffunction price-below-ninetynine-day-MA() 
+  (< (fact-slot-value (fact-id 5) price) (fact-slot-value (fact-id 7) value)))
+
+(deffunction simulate-buy (?amount ?price-per-coin)
+  (bind ?order-size (* ?amount ?price-per-coin))
+  (if (> ?*cash* ?order-size) then
+    ; quick and dirty cost basis update
+    ; average cost so far + average cost of new coins / 2
+    ;(bind ?current-basis (fact-slot-value (fact-id 2) cost-basis))
+    (bind ?current-basis ?*cost-basis*)
+    (bind ?newbasis (/ (+ ?current-basis ?price-per-coin) 2))
+    ;(modify 2 (cost-basis ?newbasis))
+    (bind ?*cost-basis* ?newbasis)
+
+    ; "execute" the buy
+    (bind ?*cash* (- ?*cash* ?order-size))
+    ;(modify 1 (amount (- (fact-slot-value (fact-id 1) amount) ?order-size)))
+    ;(modify 2 (amount (+ (fact-slot-value (fact-id 2) amount) (?amount))))
+    (bind ?*btc* (+ ?*btc* ?amount))
+    (printout t "sold BTC " ?amount " for $" ?order-size crlf)))
+
+(deffunction simulate-sell (?amount ?price-per-coin)
+  (bind ?amount-held (fact-slot-value (fact-id 2) amount))
+  (bind ?order-size (* ?amount ?price-per-coin))
+
+  (if (>= ?amount-held ?amount) then
+    (bind ?order-size (* ?amount ?price-per-coin))
+    ; "execute" the sell
+    (bind ?*cash* (+ ?*cash* ?order-size))
+    (bind ?*btc* (- ?*btc* ?amount))
+    ;(modify 1 (+ (fact-slot-value (fact-id 1) amount) ?order-size))
+    ;(modify 2 (- (fact-slot-value (fact-id 2) amount) ?amount))
+    (printout t "sold BTC" ?amount " for $" ?order-size crlf)))
+
+; ======== 
+; rulesets 
+; ========
+(defrule twenty-day-rule
+  ?x <- (check-twenty-day)
+  =>
+  (if (price-above-twenty-day-MA) then
+    (simulate-sell 1 (fact-slot-value (fact-id 5) price)))
+    (printout t "Sold 1 BTC.." crlf)
+  (if (price-below-twenty-day-MA) then
+    (simulate-buy 1 (fact-slot-value (fact-id 5) price))
+    (printout t "Bought 1 BTC.." crlf))
+  (retract ?x))
+
+(defrule ninetynine-day-rule
+  ?y <- (check-ninety-nine-day)
+  =>
+  ;(bind ?cash (fact-slot-value (fact-id 1) amount))
+  (if (price-above-ninetynine-day-MA) then
+    (simulate-sell 2 (fact-slot-value (fact-id 5) price)) 
+    (printout t "Sold 2 BTC.." crlf))
+  (if (price-below-ninetynine-day-MA) then
+    (simulate-buy 2 (fact-slot-value (fact-id 5) price))
+    (printout t "Bought 1 BTC.." crlf))
+  (retract ?y))
+
+
+; ==========
+; "main"
+; ==========
+(reset)
+(watch activations)
+(watch rules)
+; fact-id 1; avoid divide by zero; lets say there's sign up fee
+(defglobal ?*cash* = 1000000.00)
+(defglobal ?*btc* = 0.0)
+(defglobal ?*cost-basis* = 0.1)
+(assert (dollars (symbol USD) (amount 1000000.00)))
+(assert (bitcoin (symbol BTC) (amount 0.0) (cost-basis 0.1)))
+(assert (delta (value 0.0)))
+(assert (session (timeofday day)))
+(assert (spot (price 0.0)))
+(assert (twentydayMA (value 0.0)))
+(assert (ninetyninedayMA (value 0.0)))
+(bind ?filename (ask-user "filename?"))
+(bind ?*file-length*  (ask-user "datapoints in file?"))
+(parseInput ?filename)
+;(parseInput "btc_price_data_mod.csv")
+(crunch-data)
+(facts)
+(printout t "cost-basis: " ?*cost-basis* crlf)
+(printout t "cash: $" ?*cash* crlf)
+(printout t "BTC " ?*btc* crlf)
+(bind ?btccashvalue (* ?*btc* (fact-slot-value (fact-id 5) price)) crlf)
+(printout t "USD value of btc: " ?btccashvalue crlf)
+(printout t "Total USD value: $" (+ ?btccashvalue ?*cash*) crlf)
+

@@ -1,0 +1,22 @@
+; Run with
+; java -cp .:fuzzyJ-OpenSource-2.0.jar:jess.jar jess.Main fuzzy-btc-trader.jess
+
+(import nrc.fuzzy.*)
+(import nrc.fuzzy.jess.*)
+
+;(load-pacakge nrc.fuzzy.jess.FuzzyFunctions)
+;(bind ?x (new FuzzyVariable "temperature" 0.0 100.0 "C"))
+
+;(printout t ?x crlf)
+;(bind ?y (new TriangleFuzzySet 0.3 0.5 0.7))
+;(printout t ?y crlf)
+
+;(printout t "Singleton fuzzyset: " (new SingletonFuzzySet 0.5) crlf)
+
+(bind ?price (new FuzzyVariable "price" 40000.0 60000.0 "USD"))
+(call ?price addTerm "undervalued" (new PIFuzzySet 43000.0 3000.0))
+(call ?price addTerm "overvalued" (new PIFuzzySet 54000.0 6000.0))
+(call ?price addTerm "trending-price" "not undervalued and not overvalued")
+(bind ?buyable (new FuzzyValue ?price "undervalued or trending-price"))
+(printout t (call ?buyable toString) crlf)
+
