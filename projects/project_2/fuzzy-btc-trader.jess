@@ -1,22 +1,67 @@
 ; Run with
 ; java -cp .:fuzzyJ-OpenSource-2.0.jar:jess.jar jess.Main fuzzy-btc-trader.jess
 
+(import java.lang.Double)
 (import nrc.fuzzy.*)
 (import nrc.fuzzy.jess.*)
+(load-package nrc.fuzzy.jess.FuzzyFunctions)
 
-;(load-pacakge nrc.fuzzy.jess.FuzzyFunctions)
-;(bind ?x (new FuzzyVariable "temperature" 0.0 100.0 "C"))
+;;;;;;;;;;;;;;;
+;;   rules   ;;
+;;;;;;;;;;;;;;;
+(defrule buy
+    ; (price ?current-price&:(fuzzy-match ?current-price "trending-price"))
+    (fuzzy-match ?current-price "trending-price")
+  =>
+    (printout t "buy rule triggered" crlf)
+    ;(assert (buy))
+)
 
-;(printout t ?x crlf)
-;(bind ?y (new TriangleFuzzySet 0.3 0.5 0.7))
-;(printout t ?y crlf)
+;;;;;;;;;;;;;;;
+;;   'main'  ;;
+;;;;;;;;;;;;;;;
 
-;(printout t "Singleton fuzzyset: " (new SingletonFuzzySet 0.5) crlf)
+(watch activations)
+(watch rules)
+(reset)
 
-(bind ?price (new FuzzyVariable "price" 40000.0 60000.0 "USD"))
-(call ?price addTerm "undervalued" (new PIFuzzySet 43000.0 3000.0))
-(call ?price addTerm "overvalued" (new PIFuzzySet 54000.0 6000.0))
-(call ?price addTerm "trending-price" "not undervalued and not overvalued")
-(bind ?buyable (new FuzzyValue ?price "undervalued or trending-price"))
-(printout t (call ?buyable toString) crlf)
+; We use bounds for the price data because we are backtesting
+(defglobal ?*price* = (new FuzzyVariable "price" 40000.0 60000.0 "USD"))
 
+(?*price* addTerm "undervalued" (new nrc.fuzzy.PIFuzzySet 43000.0 3000.0))
+(?*price* addTerm "overvalued" (new nrc.fuzzy.PIFuzzySet 54000.0 4000.0))
+(?*price* addTerm "trending-price" "not undervalued and not overvalued")
+
+(bind ?buyable (new nrc.fuzzy.FuzzyValue ?*price* "not overvalued or undervalued or trending-price"))
+(bind ?sellable (new nrc.fuzzy.FuzzyValue ?*price* "not undervalued or overvalued or very trending-price"))
+
+(printout t "buyable: " crlf (call ?buyable toString) crlf)
+(printout t "sellable: " crlf (call ?sellable toString) crlf)
+
+(bind ?current-price (new nrc.fuzzy.FuzzyValue ?*price* "trending-price"))
+
+(run)
+
+(printout t (fuzzy-match ?current-price "trending-price") crlf)
+
+
+; create fuzzy values from crisp input functions
+(bind ?crispInputPrice (call Double valueOf "44681.517"))
+;(bind ?crispInputPrice (new Double 44681.517))
+; (bind ?fuzzyInputPrice (new nrc.fuzzy.FuzzyValue ?*price* (new nrc.fuzzy.TriangleFuzzySet((new Double (* ?crispInputPrice .99)) (new Double ?crispInputPrice) (new Double (* ?crispInputPrice 1.01))))))
+
+; (printout t (fuzzy-match ?fuzzyInputPrice "trending-price") crlf)
+
+;;;;;;;;;;;;;;;
+;; functions ;;
+;;;;;;;;;;;;;;;
+
+; read in user input
+(deffunction ask-user (?question)
+  (printout t ?question " ")
+  (return (read)))
+
+(bind ?rawInput (ask-user "price?"))
+(printout t (* ?rawInput .99) crlf)
+(bind ?fuzzyInputPrice (new FuzzyValue ?*price* (new TriangleFuzzySet  (* ?rawInput .99) ?rawInput (* ?rawInput 1.01))))
+(printout t (fuzzy-match ?fuzzyInputPrice "trending-price") crlf)
