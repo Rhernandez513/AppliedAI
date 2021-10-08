@@ -19,7 +19,6 @@
 
 ; We use bounds for the price data because we are backtesting
 (defglobal ?*price* = (new FuzzyVariable "price" 40000.0 60000.0 "USD"))
-
 (?*price* addTerm "undervalued" (new nrc.fuzzy.PIFuzzySet 45000.0 4000.0))
 (?*price* addTerm "overvalued" (new nrc.fuzzy.PIFuzzySet 55000.0 4000.0))
 (?*price* addTerm "trending-price" "not undervalued and not overvalued")
@@ -63,6 +62,7 @@
 
 
 (printout t crlf "Input a BTC price with at least 1 decimal place, receive a buy/sell suggesstion based on recently historical prices" crlf)
+(printout t crlf "NOTE: No rules firing means that the trader should HODL" crlf)
 (bind ?fuzzyInputPrice (fuzzyfy-price (ask-user "price? ")))
 (assert (user-input-price ?fuzzyInputPrice))
 (run)
